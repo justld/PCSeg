@@ -14,6 +14,8 @@
 
 import numpy as np
 
+import paddle
+
 
 def fnv_hash_vec(arr):
     assert arr.ndim == 2, "The number of coord dimensions must be 2, but got {}.".format(

@@ -19,24 +19,24 @@ from pcseg.cvlibs import manager
 
 
 @manager.TRANSFORMS.add_component
-class Compose(object):
+class Compose:
     def __init__(self, transforms):
         self.transforms = transforms
 
     def __call__(self, inputs):
-        for transform in self.transforms:
-            inputs = transform(inputs)
+        for trans in self.transforms:
+            inputs = trans(inputs)
         return inputs
 
 
 @manager.TRANSFORMS.add_component
 class RandomFeatContrast:
-    def __init__(self, p=0.2, blend_factor=None):
-        self.p = p
+    def __init__(self, prob=0.2, blend_factor=None):
+        self.prob = prob
         self.blend_factor = blend_factor
 
     def __call__(self, data):
-        if np.random.rand() < self.p:
+        if np.random.rand() < self.prob:
             lo = np.min(data['feat'][:, :3], 0, keepdims=True)
             hi = np.max(data['feat'][:, :3], 0, keepdims=True)
             scale = 255 / (hi - lo)
@@ -80,7 +80,7 @@ class RandomPositionScaling:
 
 
 @manager.TRANSFORMS.add_component
-class PointCloudFloorCentering:
+class PositionFloorCentering:
     """
     Centering the point cloud in the xy plane
 
@@ -114,7 +114,6 @@ class PositionJitter(object):
 
     def __call__(self, data):
         noise = np.random.randn(*data['pos'].shape) * self.noise_std
-        data['pos'] += noise.clamp_(-self.noise_clip, self.noise_clip)
         data['pos'] += np.clip(noise, -self.noise_clip, self.noise_clip)
         return data
 
@@ -139,13 +138,14 @@ class RandomFeatDrop:
 
 
 @manager.TRANSFORMS.add_component
-class FeatNormalize(object):
+class FeatNormalize:
     def __init__(self, color_mean=[0.5, 0.5, 0.5], color_std=[0.5, 0.5, 0.5]):
         self.color_mean = np.array(color_mean)
         self.color_std = np.array(color_std)
 
     def __call__(self, data):
-        if data['x'][:, :3].max() > 1:
-            data['x'][:, :3] /= 255.
-        data['x'][:, :3] = (data['x'][:, :3] - self.color_mean) / self.color_std
+        if data['feat'][:, :3].max() > 1:
+            data['feat'][:, :3] /= 255.
+        data['feat'][:, :3] = (
+            data['feat'][:, :3] - self.color_mean) / self.color_std
         return data

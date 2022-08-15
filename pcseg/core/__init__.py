@@ -13,3 +13,5 @@
 # limitations under the License.
 
 from .train import train
+from .val import evaluate
+from . import infer

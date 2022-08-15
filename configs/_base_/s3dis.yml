@@ -1,0 +1,60 @@
+batch_size: 4
+epochs: 200
+
+train_dataset:
+  type: S3DIS
+  dataset_root: 'data/s3disfull'
+  transforms:
+    - type: RandomFeatContrast
+      prob: 0.2
+#      blend_factor: None
+    - type: RandomPositionScaling
+      scale_range: [0.667, 1.50]
+      anisotropic: True
+      scale_xyz: [True, True, True]
+    - type: PositionFloorCentering
+      gravity_dim: 2
+    - type: PositionJitter
+      jitter_sigma: 0.01
+      jitter_clip: 0.05
+    - type: RandomFeatDrop
+      color_drop: 0.2
+    - type: FeatNormalize
+      color_mean: [0.5, 0.5, 0.5]
+      color_std: [0.5, 0.5, 0.5]
+  mode: train
+  val_area: 5
+  presample: False
+  use_raw_data: False
+  voxel_max: 24000
+
+val_dataset:
+  type: S3DIS
+  dataset_root: 'data/s3disfull'
+  transforms:
+    - type: PositionFloorCentering
+      gravity_dim: 2
+    - type: FeatNormalize
+      color_mean: [0.5, 0.5, 0.5]
+      color_std: [0.5, 0.5, 0.5]
+  mode: val
+  val_area: 5
+  presample: True
+  use_raw_data: False
+
+
+optimizer:
+  type: sgd
+  momentum: 0.9
+  weight_decay: 4.0e-5
+
+lr_scheduler:
+  type: PolynomialDecay
+  learning_rate: 0.01
+  end_lr: 0
+  power: 0.9
+
+loss:
+  types:
+    - type: CrossEntropyLoss
+  coef: [1]

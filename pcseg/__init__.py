@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import datasets
+from . import datasets, transforms, losses, models
 
 __version__ = '0.0'

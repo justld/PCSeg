@@ -12,9 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import argparse
 import random
 import logging
+import sys
+
+parent_path = os.path.abspath(os.path.join(__file__, *([".."] * 2)))
+sys.path.insert(0, parent_path)
 
 import paddle
 import numpy as np
@@ -155,19 +160,8 @@ def main(args):
     cfg = Config(
         args.cfg,
         learning_rate=args.learning_rate,
-        iters=args.iters,
+        epochs=args.epochs,
         batch_size=args.batch_size)
-
-    # Only support for the DeepLabv3+ model
-    if args.data_format == 'NHWC':
-        if cfg.dic['model']['type'] != 'DeepLabV3P':
-            raise ValueError(
-                'The "NHWC" data format only support the DeepLabV3P model!')
-        cfg.dic['model']['data_format'] = args.data_format
-        cfg.dic['model']['backbone']['data_format'] = args.data_format
-        loss_len = len(cfg.dic['loss']['types'])
-        for i in range(loss_len):
-            cfg.dic['loss']['types'][i]['data_format'] = args.data_format
 
     train_dataset = cfg.train_dataset
     if train_dataset is None:
@@ -196,7 +190,7 @@ def main(args):
         val_dataset=val_dataset,
         optimizer=cfg.optimizer,
         save_dir=args.save_dir,
-        epoches=cfg.epoches,
+        epochs=cfg.epochs,
         batch_size=cfg.batch_size,
         resume_model=args.resume_model,
         save_interval=args.save_interval,

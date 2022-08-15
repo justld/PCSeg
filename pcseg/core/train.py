@@ -15,11 +15,41 @@
 import os
 import time
 import shutil
-import logging
+from collections import deque
 
 import paddle
 
-from pcseg.utils import resume
+from pcseg.utils import resume, TimeAverager, calculate_eta, op_flops_funs, logger
+from pcseg.core.val import evaluate
+
+
+def check_logits_losses(logits_list, losses):
+    len_logits = len(logits_list)
+    len_losses = len(losses['types'])
+    if len_logits != len_losses:
+        raise RuntimeError(
+            'The length of logits_list should equal to the types of loss config: {} != {}.'
+            .format(len_logits, len_losses))
+
+
+def loss_computation(logits_list, labels, losses):
+    check_logits_losses(logits_list, losses)
+    loss_list = []
+    for i in range(len(logits_list)):
+        logits = logits_list[i]
+        loss_i = losses['types'][i]
+        coef_i = losses['coef'][i]
+
+        if loss_i.__class__.__name__ == 'MixedLoss':
+            mixed_loss_list = loss_i(logits, labels)
+            for mixed_loss in mixed_loss_list:
+                loss_list.append(coef_i * mixed_loss)
+        elif loss_i.__class__.__name__ in ("KLLoss", ):
+            loss_list.append(coef_i *
+                             loss_i(logits_list[0], logits_list[1].detach()))
+        else:
+            loss_list.append(coef_i * loss_i(logits, labels))
+    return loss_list
 
 
 def train(model,
@@ -39,7 +69,6 @@ def train(model,
           test_config=None,
           precision='fp32',
           amp_level='O1',
-          profiler_options=None,
           to_static_training=False):
     """
     Launch training.
@@ -65,7 +94,6 @@ def train(model,
         amp_level (str, optional): Auto mixed precision level. Accepted values are “O1” and “O2”: O1 represent mixed precision,
             the input data type of each operator will be casted by white_list and black_list; O2 represent Pure fp16, all operators
             parameters and input data will be casted to fp16, except operators in black_list, don’t support fp16 kernel and batchnorm. Default is O1(amp)
-        profiler_options (str, optional): The option of train profiler.
         to_static_training (bool, optional): Whether to use @to_static for training.
     """
     model.train()
@@ -83,7 +111,7 @@ def train(model,
 
     # use amp
     if precision == 'fp16':
-        logging.info('use AMP to train. AMP level = {}'.format(amp_level))
+        logger.info('use AMP to train. AMP level = {}'.format(amp_level))
         scaler = paddle.amp.GradScaler(init_loss_scaling=1024)
         if amp_level == 'O2':
             model, optimizer = paddle.amp.decorate(
@@ -112,7 +140,7 @@ def train(model,
 
     if to_static_training:
         model = paddle.jit.to_static(model)
-        logging.info("Successfully to apply @to_static")
+        logger.info("Successfully to apply @to_static")
 
     avg_loss = 0.0
     avg_loss_list = []
@@ -136,13 +164,10 @@ def train(model,
                 else:
                     break
             reader_cost_averager.record(time.time() - batch_start)
-            images = data[0]
-            labels = data[1].astype('int64')
-            edges = None
-            if len(data) == 3:
-                edges = data[2].astype('int64')
-            if hasattr(model, 'data_format') and model.data_format == 'NHWC':
-                images = images.transpose((0, 2, 3, 1))
+            pos = data['pos']
+            feat = data['feat']
+            labels = data['label']
+            features = paddle.concat([pos, feat], axis=2).transpose([0, 2, 1])
 
             if precision == 'fp16':
                 with paddle.amp.auto_cast(
@@ -152,13 +177,10 @@ def train(model,
                             "elementwise_add", "batch_norm", "sync_batch_norm"
                         },
                         custom_black_list={'bilinear_interp_v2'}):
-                    logits_list = ddp_model(images) if nranks > 1 else model(
-                        images)
+                    logits_list = ddp_model(features) if nranks > 1 else model(
+                        features)
                     loss_list = loss_computation(
-                        logits_list=logits_list,
-                        labels=labels,
-                        losses=losses,
-                        edges=edges)
+                        logits_list=logits_list, labels=labels, losses=losses)
                     loss = sum(loss_list)
 
                 scaled = scaler.scale(loss)  # scale the loss
@@ -168,12 +190,10 @@ def train(model,
                 else:
                     scaler.minimize(optimizer, scaled)  # update parameters
             else:
-                logits_list = ddp_model(images) if nranks > 1 else model(images)
+                logits_list = ddp_model(features) if nranks > 1 else model(
+                    features)
                 loss_list = loss_computation(
-                    logits_list=logits_list,
-                    labels=labels,
-                    losses=losses,
-                    edges=edges)
+                    logits_list=logits_list, labels=labels, losses=losses)
                 loss = sum(loss_list)
                 loss.backward()
                 # if the optimizer is ReduceOnPlateau, the loss is the one which has been pass into step.
@@ -184,7 +204,6 @@ def train(model,
 
             lr = optimizer.get_lr()
 
-            # update lr
             if isinstance(optimizer, paddle.distributed.fleet.Fleet):
                 lr_sche = optimizer.user_defined_optimizer._learning_rate
             else:
@@ -209,7 +228,7 @@ def train(model,
                 avg_train_batch_cost = batch_cost_averager.get_average()
                 avg_train_reader_cost = reader_cost_averager.get_average()
                 eta = calculate_eta(remain_iters, avg_train_batch_cost)
-                logging.info(
+                logger.info(
                     "[TRAIN] epoch: {}, iter: {}/{}, loss: {:.4f}, lr: {:.6f}, batch_cost: {:.4f}, reader_cost: {:.5f}, ips: {:.4f} samples/sec | ETA {}"
                     .format((iter - 1
                              ) // iters_per_epoch + 1, iter, iters, avg_loss,
@@ -236,7 +255,7 @@ def train(model,
                 reader_cost_averager.reset()
                 batch_cost_averager.reset()
 
-            if (iter % save_interval == 0 or
+            if (iter / len(loader) % save_interval == 0 or
                     iter == iters) and (val_dataset is not None):
                 num_workers = 1 if num_workers > 0 else 0
 
@@ -253,7 +272,8 @@ def train(model,
 
                 model.train()
 
-            if (iter % save_interval == 0 or iter == iters) and local_rank == 0:
+            if (iter / len(loader) % save_interval == 0 or
+                    iter == iters) and local_rank == 0:
                 current_save_dir = os.path.join(save_dir,
                                                 "iter_{}".format(iter))
                 if not os.path.isdir(current_save_dir):
@@ -275,7 +295,7 @@ def train(model,
                         paddle.save(
                             model.state_dict(),
                             os.path.join(best_model_dir, 'model.pdparams'))
-                    logging.info(
+                    logger.info(
                         '[EVAL] The model with the best validation mIoU ({:.4f}) was saved at iter {}.'
                         .format(best_mean_iou, best_model_iter))
 
@@ -286,9 +306,9 @@ def train(model,
 
     # Calculate flops.
     if local_rank == 0 and not (precision == 'fp16' and amp_level == 'O2'):
-        _, c, h, w = images.shape
+        _, c, num_points = features.shape
         _ = paddle.flops(
-            model, [1, c, h, w],
+            model, [1, c, num_points],
             custom_ops={paddle.nn.SyncBatchNorm: op_flops_funs.count_syncbn})
 
     # Sleep for half a second to let dataloader release resources.

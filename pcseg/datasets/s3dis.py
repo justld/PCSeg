@@ -13,13 +13,14 @@
 # limitations under the License.
 
 import os
-import logging
 import pickle
 import numpy as np
 from tqdm import tqdm
 
 from pcseg.datasets import voxelize, crop_pc
 from pcseg.cvlibs import manager
+from pcseg.transforms import Compose
+from pcseg.utils import logger
 
 from paddle.io import Dataset
 
@@ -52,8 +53,8 @@ class S3DIS(Dataset):
             presample=False,
             use_raw_data=False, ):
         super().__init__()
-        self.mode, self.voxel_size, self.voxel_max, self.transforms, self.presample, self.use_raw_data = mode, voxel_size, voxel_max, transforms, presample, use_raw_data
-
+        self.mode, self.voxel_size, self.voxel_max, self.presample, self.use_raw_data = mode, voxel_size, voxel_max, presample, use_raw_data
+        self.transforms = Compose(transforms)
         raw_root = os.path.join(dataset_root, 'raw')
         assert os.path.exists(
             raw_root), "{} not exists, please check your data path.".format(
@@ -95,7 +96,7 @@ class S3DIS(Dataset):
                     cdata = np.hstack((coord, feat, label))
                 self.data.append(cdata)
             npoints = np.array([len(data) for data in self.data])
-            logging.info(
+            logger.info(
                 'mode: {}, median npoints {}, avg num points {}, std {}.'.
                 format(self.mode,
                        np.median(npoints), np.average(npoints), np.std(
@@ -103,12 +104,12 @@ class S3DIS(Dataset):
             os.makedirs(processed_root, exist_ok=True)
             with open(filename, 'wb') as f:
                 pickle.dump(self.data, f)
-                logging.info("{} saved successfully.".format(filename))
+                logger.info("{} saved successfully.".format(filename))
         elif presample:
             with open(filename, 'rb') as f:
                 self.data = pickle.load(f)
-                logging.info("{} load successfully.".format(filename))
-        logging.info("Totally {} samples in {} set.".format(
+                logger.info("{} load successfully.".format(filename))
+        logger.info("Totally {} samples in {} set.".format(
             len(self.data_list), self.mode))
 
     def __getitem__(self, idx):
@@ -148,7 +149,7 @@ if __name__ == '__main__':
         dataset_root="/home/ld/Desktop/pointcloud/PCSeg/data/s3disfull",
         presample=False,
         use_raw_data=False)
-    logging.info(len(train_dataset))
+    logger.info(len(train_dataset))
     d = train_dataset[0]
     # print(type(d), d.keys())
 
@@ -157,6 +158,6 @@ if __name__ == '__main__':
         mode='val',
         presample=True,
         use_raw_data=False)
-    logging.info(len(val_dataset))
+    logger.info(len(val_dataset))
     d = val_dataset[0]
     # print(type(d), d.keys())

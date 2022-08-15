@@ -70,7 +70,7 @@ class Config(object):
                  path: str,
                  learning_rate: float=None,
                  batch_size: int=None,
-                 iters: int=None):
+                 epochs: int=None):
         if not path:
             raise ValueError('Please specify the configuration file path.')
 
@@ -85,7 +85,7 @@ class Config(object):
             raise RuntimeError('Config file should in yaml format!')
 
         self.update(
-            learning_rate=learning_rate, batch_size=batch_size, iters=iters)
+            learning_rate=learning_rate, batch_size=batch_size, iters=epochs)
 
     def _update_dic(self, dic, base_dic):
         """
@@ -141,8 +141,16 @@ class Config(object):
         return self.dic.get('batch_size', 1)
 
     @property
+    def epochs(self) -> int:
+        epochs = self.dic.get('epochs')
+        if not epochs:
+            raise RuntimeError('No epochs specified in the configuration file.')
+        return epochs
+
+    @property
     def iters(self) -> int:
-        iters = self.dic.get('iters')
+        iters = self.dic.get('epochs') * len(
+            self.train_dataset) // self.dic.get('batch_size')
         if not iters:
             raise RuntimeError('No iters specified in the configuration file.')
         return iters
@@ -293,14 +301,14 @@ class Config(object):
             if key == 'types':
                 losses['types'] = []
                 for item in args['types']:
-                    if item['type'] != 'MixedLoss':
-                        if 'ignore_index' in item:
-                            assert item['ignore_index'] == self.train_dataset.ignore_index, 'If ignore_index of loss is set, '\
-                            'the ignore_index of loss and train_dataset must be the same. \nCurrently, loss ignore_index = {}, '\
-                            'train_dataset ignore_index = {}. \nIt is recommended not to set loss ignore_index, so it is consistent with '\
-                            'train_dataset by default.'.format(item['ignore_index'], self.train_dataset.ignore_index)
-                        item['ignore_index'] = \
-                            self.train_dataset.ignore_index
+                    # if item['type'] != 'MixedLoss':
+                    #     if 'ignore_index' in item:
+                    #         assert item['ignore_index'] == self.train_dataset.ignore_index, 'If ignore_index of loss is set, '\
+                    #         'the ignore_index of loss and train_dataset must be the same. \nCurrently, loss ignore_index = {}, '\
+                    #         'train_dataset ignore_index = {}. \nIt is recommended not to set loss ignore_index, so it is consistent with '\
+                    #         'train_dataset by default.'.format(item['ignore_index'], self.train_dataset.ignore_index)
+                    #     item['ignore_index'] = \
+                    #         self.train_dataset.ignore_index
                     losses['types'].append(self._load_object(item))
             else:
                 losses[key] = val

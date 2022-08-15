@@ -12,11 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .env import get_sys_env
-from .config_check import config_check
-from .utils import resume
-from .timer import calculate_eta, TimeAverager
-from .op_flops_funs import count_syncbn
-from . import progbar
-from . import logger
-from . import metrics
+
+def count_syncbn(m, x, y):
+    x = x[0]
+    nelements = x.numel()
+    m.total_ops += int(2 * nelements)
