@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from .data_utils import *
 
 from .s3dis import S3DIS

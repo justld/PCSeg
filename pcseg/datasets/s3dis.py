@@ -19,10 +19,12 @@ import numpy as np
 from tqdm import tqdm
 
 from pcseg.datasets import voxelize, crop_pc
+from pcseg.cvlibs import manager
 
 from paddle.io import Dataset
 
 
+@manager.DATASETS.add_component
 class S3DIS(Dataset):
     num_classes = 13
     """
@@ -38,50 +40,66 @@ class S3DIS(Dataset):
         presample (bool, optional): Whether downsample each point cloud before training. Set to False to downsample on the fly. Default: False.
         use_raw_data (bool, optional): Whether use raw point cloud data. Default: False.
     """
-    def __init__(self,
-                 dataset_root='data/s3disfull',
-                 val_area=5,
-                 voxel_size=0.04,
-                 voxel_max=None,
-                 mode='train',
-                 transforms=None,
-                 presample=False,
-                 use_raw_data=False,
-                 ):
+
+    def __init__(
+            self,
+            dataset_root='data/s3disfull',
+            val_area=5,
+            voxel_size=0.04,
+            voxel_max=None,
+            mode='train',
+            transforms=None,
+            presample=False,
+            use_raw_data=False, ):
         super().__init__()
         self.mode, self.voxel_size, self.voxel_max, self.transforms, self.presample, self.use_raw_data = mode, voxel_size, voxel_max, transforms, presample, use_raw_data
 
         raw_root = os.path.join(dataset_root, 'raw')
-        assert os.path.exists(raw_root), "{} not exists, please check your data path.".format(raw_root)
+        assert os.path.exists(
+            raw_root), "{} not exists, please check your data path.".format(
+                raw_root)
         self.raw_root = raw_root
 
         data_list = sorted(os.listdir(raw_root))
         data_list = [item[:-4] for item in data_list if 'Area_' in item]
         if mode == 'train':
             self.data_list = [
-                item for item in data_list if not 'Area_{}'.format(val_area) in item]
+                item for item in data_list
+                if not 'Area_{}'.format(val_area) in item
+            ]
         else:
             self.data_list = [
-                item for item in data_list if 'Area_{}'.format(val_area) in item]
+                item for item in data_list if 'Area_{}'.format(val_area) in item
+            ]
 
         processed_root = os.path.join(dataset_root, 'processed')
-        filename = os.path.join(processed_root, f's3dis_{mode}_area{val_area}_{voxel_size:.3f}.pkl')
+        filename = os.path.join(
+            processed_root, f's3dis_{mode}_area{val_area}_{voxel_size:.3f}.pkl')
         print(filename, mode)
         if presample and not os.path.exists(filename):
             np.random.seed(10001)
             self.data = []
-            for item in tqdm(self.data_list, desc='Loading S3DISFull {} split on val Area {}'.format(mode, val_area)):
+            for item in tqdm(
+                    self.data_list,
+                    desc='Loading S3DISFull {} split on val Area {}'.format(
+                        mode, val_area)):
                 data_path = os.path.join(raw_root, item + '.npy')
                 cdata = np.load(data_path).astype(np.float32)
                 cdata[:, :3] -= np.min(cdata[:, :3], 0)
                 if voxel_size:
-                    coord, feat, label = cdata[:, 0:3], cdata[:, 3:6], cdata[:, 6:7]
+                    coord, feat, label = cdata[:, 0:3], cdata[:, 3:
+                                                              6], cdata[:, 6:7]
                     uniq_idx = voxelize(coord, voxel_size)
-                    coord, feat, label = coord[uniq_idx], feat[uniq_idx], label[uniq_idx]
+                    coord, feat, label = coord[uniq_idx], feat[uniq_idx], label[
+                        uniq_idx]
                     cdata = np.hstack((coord, feat, label))
                 self.data.append(cdata)
             npoints = np.array([len(data) for data in self.data])
-            logging.info('mode: {}, median npoints {}, avg num points {}, std {}.'.format(self.mode, np.median(npoints), np.average(npoints), np.std(npoints)))
+            logging.info(
+                'mode: {}, median npoints {}, avg num points {}, std {}.'.
+                format(self.mode,
+                       np.median(npoints), np.average(npoints), np.std(
+                           npoints)))
             os.makedirs(processed_root, exist_ok=True)
             with open(filename, 'wb') as f:
                 pickle.dump(self.data, f)
@@ -90,20 +108,27 @@ class S3DIS(Dataset):
             with open(filename, 'rb') as f:
                 self.data = pickle.load(f)
                 logging.info("{} load successfully.".format(filename))
-        logging.info("Totally {} samples in {} set.".format(len(self.data_list), self.mode))
+        logging.info("Totally {} samples in {} set.".format(
+            len(self.data_list), self.mode))
 
     def __getitem__(self, idx):
         if self.presample:
             coord, feat, label = np.split(self.data[idx], [3, 6], axis=1)
         else:
-            data_path = os.path.join(
-                self.raw_root, self.data_list[idx] + '.npy')
+            data_path = os.path.join(self.raw_root,
+                                     self.data_list[idx] + '.npy')
             cdata = np.load(data_path).astype(np.float32)
             cdata[:, :3] -= np.min(cdata[:, :3], 0)
             coord, feat, label = cdata[:, :3], cdata[:, 3:6], cdata[:, 6:7]
             coord, feat, label = crop_pc(
-                coord, feat, label, self.mode, self.voxel_size, self.voxel_max,
-                downsample=not self.presample, use_raw_data=self.use_raw_data)
+                coord,
+                feat,
+                label,
+                self.mode,
+                self.voxel_size,
+                self.voxel_max,
+                downsample=not self.presample,
+                use_raw_data=self.use_raw_data)
 
         label = label.squeeze(-1).astype(np.compat.long)
         data = {'pos': coord, 'feat': feat, 'label': label}
@@ -119,12 +144,19 @@ class S3DIS(Dataset):
 
 
 if __name__ == '__main__':
-    train_dataset = S3DIS(dataset_root="/home/ld/Desktop/pointcloud/PCSeg/data/s3disfull", presample=False, use_raw_data=False)
+    train_dataset = S3DIS(
+        dataset_root="/home/ld/Desktop/pointcloud/PCSeg/data/s3disfull",
+        presample=False,
+        use_raw_data=False)
     logging.info(len(train_dataset))
     d = train_dataset[0]
     # print(type(d), d.keys())
 
-    val_dataset = S3DIS(dataset_root="/home/ld/Desktop/pointcloud/PCSeg/data/s3disfull", mode='val', presample=True, use_raw_data=False)
+    val_dataset = S3DIS(
+        dataset_root="/home/ld/Desktop/pointcloud/PCSeg/data/s3disfull",
+        mode='val',
+        presample=True,
+        use_raw_data=False)
     logging.info(len(val_dataset))
     d = val_dataset[0]
     # print(type(d), d.keys())

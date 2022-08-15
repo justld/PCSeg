@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import datasets
-
-__version__ = '0.0'
+from .env import get_sys_env
+from .config_check import config_check
+from .utils import resume

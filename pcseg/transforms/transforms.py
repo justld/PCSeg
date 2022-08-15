@@ -15,7 +15,10 @@
 import random
 import numpy as np
 
+from pcseg.cvlibs import manager
 
+
+@manager.TRANSFORMS.add_component
 class Compose(object):
     def __init__(self, transforms):
         self.transforms = transforms
@@ -26,6 +29,7 @@ class Compose(object):
         return inputs
 
 
+@manager.TRANSFORMS.add_component
 class RandomFeatContrast:
     def __init__(self, p=0.2, blend_factor=None):
         self.p = p
@@ -37,11 +41,15 @@ class RandomFeatContrast:
             hi = np.max(data['feat'][:, :3], 0, keepdims=True)
             scale = 255 / (hi - lo)
             contrast_feat = (data['feat'][:, :3] - lo) * scale
-            blend_factor = np.random.rand() if self.blend_factor is None else self.blend_factor
-            data['feat'][:, :3] = (1 - blend_factor) * data['feat'][:, :3] + blend_factor * contrast_feat
+            blend_factor = np.random.rand(
+            ) if self.blend_factor is None else self.blend_factor
+            data['feat'][:, :3] = (
+                1 - blend_factor
+            ) * data['feat'][:, :3] + blend_factor * contrast_feat
         return data
 
 
+@manager.TRANSFORMS.add_component
 class RandomPositionScaling:
     """
     Random scaling position in point cloud data.
@@ -51,13 +59,19 @@ class RandomPositionScaling:
         anisotropic (bool, optional): Whether you use same scale ratio in different axis. Default: True.
         scale_xyz (list, optional):  Whether use scaling in xyz axis. Default: [True, True, True].
     """
-    def __init__(self, scale_range=[2. / 3, 3. / 2], anisotropic=True, scale_xyz=[True, True, True]):
-        self.scale_min, self.scale_max = np.array(scale_range).astype(np.float32)
+
+    def __init__(self,
+                 scale_range=[2. / 3, 3. / 2],
+                 anisotropic=True,
+                 scale_xyz=[True, True, True]):
+        self.scale_min, self.scale_max = np.array(scale_range).astype(
+            np.float32)
         self.anisotropic = anisotropic
         self.scale_xyz = scale_xyz
 
     def __call__(self, data):
-        scale = np.random.rand(3 if self.anisotropic else 1) * (self.scale_max - self.scale_min) + self.scale_min
+        scale = np.random.rand(3 if self.anisotropic else 1) * (
+            self.scale_max - self.scale_min) + self.scale_min
         for i, s in enumerate(self.scale_xyz):
             if not s:
                 scale[i] = 1
@@ -65,6 +79,7 @@ class RandomPositionScaling:
         return data
 
 
+@manager.TRANSFORMS.add_component
 class PointCloudFloorCentering:
     """
     Centering the point cloud in the xy plane
@@ -72,15 +87,18 @@ class PointCloudFloorCentering:
     Args:
         gravity_dim (int): The dimension of gravity. Default: 2.
     """
+
     def __init__(self, gravity_dim=2):
         self.gravity_dim = gravity_dim
 
     def __call__(self, data):
         data['pos'] -= np.mean(data['pos'], axis=0, keepdims=True)
-        data['pos'][:, self.gravity_dim] -= np.min(data['pos'][:, self.gravity_dim])
+        data['pos'][:, self.gravity_dim] -= np.min(data['pos']
+                                                   [:, self.gravity_dim])
         return data
 
 
+@manager.TRANSFORMS.add_component
 class PositionJitter(object):
     """
     Position noise.
@@ -89,6 +107,7 @@ class PositionJitter(object):
         jitter_sigma (float, optional): Noise scale ratio. Default: 0.01.
         jitter_clip (float, optional): Clipped noise range [-jitter_clip, jitter_clip]. Default: 0.05.
     """
+
     def __init__(self, jitter_sigma=0.01, jitter_clip=0.05):
         self.noise_std = jitter_sigma
         self.noise_clip = jitter_clip
@@ -100,6 +119,7 @@ class PositionJitter(object):
         return data
 
 
+@manager.TRANSFORMS.add_component
 class RandomFeatDrop:
     """
     Random drop feat data.
@@ -107,6 +127,7 @@ class RandomFeatDrop:
     Args:
         color_drop (float, optional): Feature drop ratio. Default: 0.2.
     """
+
     def __init__(self, color_drop=0.2):
         self.color_drop = color_drop
 
@@ -117,6 +138,7 @@ class RandomFeatDrop:
         return data
 
 
+@manager.TRANSFORMS.add_component
 class FeatNormalize(object):
     def __init__(self, color_mean=[0.5, 0.5, 0.5], color_std=[0.5, 0.5, 0.5]):
         self.color_mean = np.array(color_mean)
