@@ -1,4 +1,4 @@
-batch_size: 4
+batch_size: 16   # batch_size on single gpu, if you have n gpus, batch_size is batch_size * n.
 epochs: 200
 
 train_dataset:
@@ -7,18 +7,18 @@ train_dataset:
   transforms:
     - type: RandomFeatContrast
       prob: 0.2
-#      blend_factor: None
+      blend_factor: None
     - type: RandomPositionScaling
-      scale_range: [0.667, 1.50]
+      scale_range: [0.9, 1.1]
       anisotropic: True
       scale_xyz: [True, True, True]
     - type: PositionFloorCentering
       gravity_dim: 2
     - type: PositionJitter
-      jitter_sigma: 0.01
-      jitter_clip: 0.05
+      jitter_sigma: 0.005
+      jitter_clip: 0.02
     - type: RandomFeatDrop
-      color_drop: 0.2
+      drop_ratio: 0.1
     - type: FeatNormalize
       color_mean: [0.5, 0.5, 0.5]
       color_std: [0.5, 0.5, 0.5]
@@ -27,6 +27,8 @@ train_dataset:
   presample: False
   use_raw_data: False
   voxel_max: 24000
+  loop: 30
+  n_shifted: 1
 
 val_dataset:
   type: S3DIS
@@ -41,6 +43,8 @@ val_dataset:
   val_area: 5
   presample: True
   use_raw_data: False
+  loop: 1
+  n_shifted: 1
 
 
 optimizer:

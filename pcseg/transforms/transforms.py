@@ -41,8 +41,9 @@ class RandomFeatContrast:
             hi = np.max(data['feat'][:, :3], 0, keepdims=True)
             scale = 255 / (hi - lo)
             contrast_feat = (data['feat'][:, :3] - lo) * scale
-            blend_factor = np.random.rand(
-            ) if self.blend_factor is None else self.blend_factor
+            blend_factor = np.random.rand() if isinstance(
+                self.blend_factor, str) and self.blend_factor.lower(
+                ) == 'none' else self.blend_factor
             data['feat'][:, :3] = (
                 1 - blend_factor
             ) * data['feat'][:, :3] + blend_factor * contrast_feat
@@ -127,11 +128,11 @@ class RandomFeatDrop:
         color_drop (float, optional): Feature drop ratio. Default: 0.2.
     """
 
-    def __init__(self, color_drop=0.2):
-        self.color_drop = color_drop
+    def __init__(self, drop_ratio=0.2):
+        self.drop_ratio = drop_ratio
 
     def __call__(self, data):
-        colors_drop = random.random() < self.color_drop
+        colors_drop = random.random() < self.drop_ratio
         if colors_drop:
             data['feat'][:, :3] = 0
         return data

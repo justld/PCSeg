@@ -5,20 +5,22 @@ epochs: 200
 
 model:
   type: PointNet
-  in_channels: 6
+  in_channels: 7
   num_classes: 13
 
 optimizer:
-  type: sgd
-  weight_decay: 0.0005
+  _inherited_: False
+  type: AdamW
+  weight_decay: 0.00001
 
 loss:
   types:
     - type: CrossEntropyLoss
+      label_smoothing: 0.2
   coef: [1]
 
 lr_scheduler:
   type: PolynomialDecay
-  learning_rate: 0.01
+  learning_rate: 0.005
   end_lr: 0.0
   power: 0.9

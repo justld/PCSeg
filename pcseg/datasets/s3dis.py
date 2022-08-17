@@ -40,20 +40,22 @@ class S3DIS(Dataset):
         transforms (None, optional): The transforms used to augment data. Default: None.
         presample (bool, optional): Whether downsample each point cloud before training. Set to False to downsample on the fly. Default: False.
         use_raw_data (bool, optional): Whether use raw point cloud data. Default: False.
+        n_shifted (int, optional): The number of shifted coordinates to be used. Defaults: 1.
     """
 
-    def __init__(
-            self,
-            dataset_root='data/s3disfull',
-            val_area=5,
-            voxel_size=0.04,
-            voxel_max=None,
-            mode='train',
-            transforms=None,
-            presample=False,
-            use_raw_data=False, ):
+    def __init__(self,
+                 dataset_root='data/s3disfull',
+                 val_area=5,
+                 voxel_size=0.04,
+                 voxel_max=None,
+                 mode='train',
+                 transforms=None,
+                 presample=False,
+                 use_raw_data=False,
+                 n_shifted=1,
+                 loop=30):
         super().__init__()
-        self.mode, self.voxel_size, self.voxel_max, self.presample, self.use_raw_data = mode, voxel_size, voxel_max, presample, use_raw_data
+        self.mode, self.voxel_size, self.voxel_max, self.presample, self.use_raw_data, self.n_shifted, self.loop = mode, voxel_size, voxel_max, presample, use_raw_data, n_shifted, loop
         self.transforms = Compose(transforms)
         raw_root = os.path.join(dataset_root, 'raw')
         assert os.path.exists(
@@ -113,6 +115,7 @@ class S3DIS(Dataset):
             len(self.data_list), self.mode))
 
     def __getitem__(self, idx):
+        idx = idx % len(self.data_list)
         if self.presample:
             coord, feat, label = np.split(self.data[idx], [3, 6], axis=1)
         else:
@@ -136,12 +139,13 @@ class S3DIS(Dataset):
 
         if self.transforms is not None:
             data = self.transforms(data)
-        # data['x'] = torch.cat((data['x'], torch.from_numpy(
-        #     coord[:, 3-self.n_shifted:3].astype(np.float32))), dim=-1)
+        data['feat'] = np.concatenate(
+            [data['feat'], coord[:, 3 - self.n_shifted:3].astype('float32')],
+            axis=-1)
         return data
 
     def __len__(self):
-        return len(self.data_list)
+        return len(self.data_list) * self.loop
 
 
 if __name__ == '__main__':

@@ -28,7 +28,7 @@ class CrossEntropyLoss(nn.Layer):
     def forward(self, logit, label):
         logit = logit.transpose([0, 2, 1])
         if self.smoothing:
-            label = F.one_hot(label, logit.shape[1])
+            label = F.one_hot(label, num_classes=logit.shape[2])
             label = F.label_smooth(label, epsilon=self.smoothing)
             x = -F.log_softmax(logit, axis=-1)
             loss = paddle.sum(x * label, axis=-1)
