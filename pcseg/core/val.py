@@ -138,8 +138,7 @@ def evaluate(model,
                     real_batch_size = end_idx - start_idx
 
                     batch_data = scene_data[start_idx:end_idx, ...]
-                    batch_point_index = scene_point_index[start_idx:end_idx, ..
-                                                          .]
+                    batch_point_index = scene_point_index[start_idx:end_idx]
                     batch_smpw = scene_smpw[start_idx:end_idx, ...]
 
                     if precision == 'fp16':
