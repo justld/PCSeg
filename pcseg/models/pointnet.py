@@ -30,23 +30,23 @@ class PointNet(nn.Layer):
                  feature_transform=True,
                  pretrained=None):
         super().__init__()
-        super().__init__()
+        self.feature_transform = feature_transform
         self.stn = STN3d(in_channels) if input_transform else None
         self.conv0_1 = nn.Conv1D(in_channels, 64, 1)
         self.conv0_2 = nn.Conv1D(64, 64, 1)
 
         self.conv1 = nn.Conv1D(64, 64, 1)
         self.conv2 = nn.Conv1D(64, 128, 1)
-        self.conv3 = nn.Conv1D(128, 1024, 1)
+        self.conv3 = nn.Conv1D(128, 256, 1)
         self.bn0_1 = nn.BatchNorm1D(64)
         self.bn0_2 = nn.BatchNorm1D(64)
         self.bn1 = nn.BatchNorm1D(64)
         self.bn2 = nn.BatchNorm1D(128)
-        self.bn3 = nn.BatchNorm1D(1024)
+        self.bn3 = nn.BatchNorm1D(256)
         self.fstn = STNkd(k=64) if feature_transform else None
-        self.out_channels = 1024 + 64
+        self.out_channels = 256 + 64
 
-        self.head = Decoder(1088, num_classes)
+        self.head = Decoder(self.out_channels, num_classes)
 
     def forward(self, x):
 
@@ -76,10 +76,12 @@ class PointNet(nn.Layer):
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
         x = paddle.max(x, 2, keepdim=True)
-        x = x.reshape([B, 1024, 1])
+        # x = x.reshape([B, 1024, 1])
         x = paddle.tile(x, [1, 1, N])
         x = paddle.concat([x, point_feat], axis=1)
         logit = self.head(x)
+        if self.training and self.feature_transform:
+            return [logit, trans_feat]
         return [logit]
 
 

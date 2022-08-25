@@ -69,7 +69,8 @@ def train(model,
           test_config=None,
           precision='fp32',
           amp_level='O1',
-          to_static_training=False):
+          to_static_training=False,
+          num_votes=3):
     """
     Launch training.
 
@@ -164,10 +165,12 @@ def train(model,
                 else:
                     break
             reader_cost_averager.record(time.time() - batch_start)
-            pos = data['pos']
-            feat = data['feat']
-            labels = data['label']
-            features = paddle.concat([pos, feat], axis=2).transpose([0, 2, 1])
+            # pos = data['pos']
+            # feat = data['feat']
+            # labels = data['label']
+            # features = paddle.concat([pos, feat], axis=2).transpose([0, 2, 1])
+            features = data[0].astype('float32')
+            labels = data[1].astype('int64')
 
             if precision == 'fp16':
                 with paddle.amp.auto_cast(
@@ -268,6 +271,7 @@ def train(model,
                     num_workers=num_workers,
                     precision=precision,
                     amp_level=amp_level,
+                    num_votes=num_votes,
                     **test_config)
 
                 model.train()

@@ -18,7 +18,7 @@ train_dataset:
       jitter_sigma: 0.005
       jitter_clip: 0.02
     - type: RandomFeatDrop
-      drop_ratio: 0.1
+      drop_ratio: 0.2
     - type: FeatNormalize
       color_mean: [0.5, 0.5, 0.5]
       color_std: [0.5, 0.5, 0.5]

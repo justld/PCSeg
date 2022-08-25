@@ -12,5 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .data_utils import *
-from .s3dis import S3DIS, ScannetDatasetWholeScene
+import paddle
+import paddle.nn as nn
+import paddle.nn.functional as F
+
+from pcseg.cvlibs import manager
+
+
+@manager.LOSSES.add_component
+class FeatureTransformLoss(nn.Layer):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, logit, label):
+        d = logit.shape[1]
+        I = paddle.eye(d)[None, :, :]
+        loss = paddle.norm(
+            paddle.bmm(logit, logit.transpose([0, 2, 1])) - I, axis=(1, 2))
+        return loss.mean()

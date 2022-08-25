@@ -13,3 +13,4 @@
 # limitations under the License.
 
 from .pointnet import PointNet
+from .pointnetv2 import PointNetV2

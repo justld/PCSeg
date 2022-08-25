@@ -13,3 +13,4 @@
 # limitations under the License.
 
 from .cross_entropy_loss import CrossEntropyLoss
+from .feature_transform_loss import FeatureTransformLoss

@@ -141,6 +141,10 @@ class Config(object):
         return self.dic.get('batch_size', 1)
 
     @property
+    def num_votes(self) -> int:
+        return self.dic.get('num_votes', 3)
+
+    @property
     def epochs(self) -> int:
         epochs = self.dic.get('epochs')
         if not epochs:

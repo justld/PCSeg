@@ -13,4 +13,4 @@
 # limitations under the License.
 
 from .functional import *
-from .transforms import RandomFeatContrast, RandomFeatDrop, RandomPositionScaling, PositionJitter, PositionFloorCentering, Compose
+from .transforms import RandomFeatContrast, RandomFeatDrop, RandomPositionScaling, PositionJitter, PositionFloorCentering, Compose, PositionNormalize

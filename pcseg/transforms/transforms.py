@@ -141,12 +141,43 @@ class RandomFeatDrop:
 @manager.TRANSFORMS.add_component
 class FeatNormalize:
     def __init__(self, color_mean=[0.5, 0.5, 0.5], color_std=[0.5, 0.5, 0.5]):
-        self.color_mean = np.array(color_mean)
-        self.color_std = np.array(color_std)
+        self.color_mean = np.array(color_mean)[None, :]
+        self.color_std = np.array(color_std)[None, :]
 
     def __call__(self, data):
         if data['feat'][:, :3].max() > 1:
             data['feat'][:, :3] /= 255.
         data['feat'][:, :3] = (
             data['feat'][:, :3] - self.color_mean) / self.color_std
+        return data
+
+
+@manager.TRANSFORMS.add_component
+class PositionNormalize:
+    def __init__(self, ):
+        pass
+
+    def __call__(self, data):
+        coord = data['pos']
+        max_coord = np.max(np.abs(data['pos']), axis=0, keepdims=True)
+        coord = coord / max_coord
+        data['pos'] = coord
+        # print(data['pos'][:, 2].min(), data['pos'][:, 2].max())
+        # print(data['pos'][:, 0].min(), data['pos'][:, 0].max())
+        # print(data['pos'][:, 1].min(), data['pos'][:, 1].max())
+        return data
+
+
+@manager.TRANSFORMS.add_component
+class RandomRotatePositionByZ:
+    def __init__(self, ):
+        pass
+
+    def __call__(self, data):
+        rotation_angle = np.random.uniform() * 2 * np.pi
+        cosval = np.cos(rotation_angle)
+        sinval = np.sin(rotation_angle)
+        rotation_matrix = np.array([[cosval, sinval, 0], [-sinval, cosval, 0],
+                                    [0, 0, 1]])
+        data['pos'] = np.dot(data['pos'], rotation_matrix).astype('float32')
         return data

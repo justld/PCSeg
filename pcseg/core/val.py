@@ -25,13 +25,47 @@ from pcseg.core import infer
 np.set_printoptions(suppress=True)
 
 
+def add_vote(vote_label_pool, point_idx, pred_label, weight):
+    B = pred_label.shape[0]
+    N = pred_label.shape[1]
+    for b in range(B):
+        for n in range(N):
+            if weight[b, n] != 0 and not np.isinf(weight[b, n]):
+                vote_label_pool[int(point_idx[b, n]), int(pred_label[b,
+                                                                     n])] += 1
+    return vote_label_pool
+
+
+def visual_points(output_dir, file_name, points, gt, pred, color_palette):
+    gt_f = open(os.path.join(output_dir, file_name + '_gt.txt'), 'w')
+    pred_f = open(os.path.join(output_dir, file_name + '_pred.txt'), 'w')
+    for i in range(points.shape[0]):
+        gt_f.write("{} {} {} {} {} {}\n".format(
+            points[i, 0],
+            points[i, 1],
+            points[i, 2],
+            color_palette[gt[i]][0],
+            color_palette[gt[i]][1],
+            color_palette[gt[i]][2], ))
+        pred_f.write("{} {} {} {} {} {}\n".format(
+            points[i, 0],
+            points[i, 1],
+            points[i, 2],
+            color_palette[pred[i]][0],
+            color_palette[pred[i]][1],
+            color_palette[pred[i]][2], ))
+    gt_f.close()
+    pred_f.close()
+
+
 def evaluate(model,
              eval_dataset,
              precision='fp32',
              amp_level='O1',
              num_workers=0,
              print_detail=True,
-             auc_roc=False):
+             auc_roc=False,
+             num_votes=3):
     """
     Launch evalution.
 
@@ -83,25 +117,62 @@ def evaluate(model,
     with paddle.no_grad():
         for iter, data in enumerate(loader):
             reader_cost_averager.record(time.time() - batch_start)
-            pos = data['pos']
-            feat = data['feat']
-            features = paddle.concat([pos, feat], axis=2).transpose([0, 2, 1])
-            label = data['label'].astype('int64')
+            BATCH_SIZE = 32
+            scene_data, scene_label, scene_smpw, scene_point_index = data[
+                0], data[1], data[2], data[3]
+            scene_data = scene_data[0].astype('float32')
+            label = eval_dataset.semantic_labels_list[iter]
+            scene_point_index = scene_point_index[0].numpy()
+            scene_smpw = scene_smpw[0].numpy()
 
-            if precision == 'fp16':
-                with paddle.amp.auto_cast(
-                        level=amp_level,
-                        enable=True,
-                        custom_white_list={
-                            "elementwise_add", "batch_norm", "sync_batch_norm"
-                        },
-                        custom_black_list={'bilinear_interp_v2'}):
-                    pred, logits = infer.inference(model, features)
-            else:
-                pred, logits = infer.inference(model, features)
+            vote_label_pool = np.zeros(
+                (eval_dataset.semantic_labels_list[iter].shape[0],
+                 eval_dataset.num_classes))
+            for _ in range(num_votes):
+                num_blocks = scene_data.shape[0]
+                s_batch_num = (num_blocks + BATCH_SIZE - 1) // BATCH_SIZE
+
+                for s_batch in range(s_batch_num):
+                    start_idx = s_batch * BATCH_SIZE
+                    end_idx = min((s_batch + 1) * BATCH_SIZE, num_blocks)
+                    real_batch_size = end_idx - start_idx
+
+                    batch_data = scene_data[start_idx:end_idx, ...]
+                    batch_point_index = scene_point_index[start_idx:end_idx, ..
+                                                          .]
+                    batch_smpw = scene_smpw[start_idx:end_idx, ...]
+
+                    if precision == 'fp16':
+                        with paddle.amp.auto_cast(
+                                level=amp_level,
+                                enable=True,
+                                custom_white_list={
+                                    "elementwise_add", "batch_norm",
+                                    "sync_batch_norm"
+                                },
+                                custom_black_list={'bilinear_interp_v2'}):
+                            pred, logits = infer.inference(model, batch_data)
+                    else:
+                        pred, logits = infer.inference(model, batch_data)
+                    vote_label_pool = add_vote(
+                        vote_label_pool, batch_point_index[0:real_batch_size],
+                        pred[0:real_batch_size].squeeze(1).numpy(),
+                        batch_smpw[0:real_batch_size])
+            pred = np.argmax(vote_label_pool, 1)
+
+            # visual
+            output_dir = 'output/visual'
+            os.makedirs(output_dir, exist_ok=True)
+            visual_points(
+                output_dir, eval_dataset.file_list[iter][:-4],
+                eval_dataset.scene_points_list[iter],
+                eval_dataset.semantic_labels_list[iter].astype('int').tolist(),
+                pred.tolist(), eval_dataset.PALETTE)
 
             intersect_area, pred_area, label_area = metrics.calculate_area(
-                pred, label, eval_dataset.num_classes)
+                paddle.to_tensor(pred),
+                paddle.to_tensor(label.reshape((-1, ))),
+                eval_dataset.num_classes)
 
             # Gather from all ranks
             if nranks > 1:
@@ -113,7 +184,6 @@ def evaluate(model,
                 paddle.distributed.all_gather(pred_area_list, pred_area)
                 paddle.distributed.all_gather(label_area_list, label_area)
 
-                # Some image has been evaluated and should be eliminated in last iter
                 if (iter + 1) * nranks > len(eval_dataset):
                     valid = len(eval_dataset) - iter * nranks
                     intersect_area_list = intersect_area_list[:valid]

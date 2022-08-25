@@ -12,5 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .data_utils import *
-from .s3dis import S3DIS, ScannetDatasetWholeScene
+from .sample_methods import index_points, query_ball_point, farthest_point_sample, sample_and_group, sample_and_group_all, square_distance

@@ -94,6 +94,12 @@ def parse_args():
         default=10,
         type=int)
     parser.add_argument(
+        '--num_votes',
+        dest='num_votes',
+        help='The number of votes.',
+        default=3,
+        type=int)
+    parser.add_argument(
         '--use_vdl',
         dest='use_vdl',
         help='Whether to record the data to VisualDL during training',
@@ -202,7 +208,8 @@ def main(args):
         test_config=cfg.test_config,
         precision=args.precision,
         amp_level=args.amp_level,
-        to_static_training=cfg.to_static_training)
+        to_static_training=cfg.to_static_training,
+        num_votes=args.num_votes)
 
 
 if __name__ == '__main__':

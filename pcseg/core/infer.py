@@ -14,6 +14,7 @@
 
 import collections.abc
 
+import numpy as np
 import paddle
 
 
@@ -36,4 +37,21 @@ def inference(model, features):
             .format(type(logits)))
     logit = logits[0]
     pred = paddle.argmax(logit, axis=1, keepdim=True, dtype='int32')
+
+    # label = pred[0].numpy().transpose([1, 0])
+    # # print(features.shape, label.shape)
+    # tmp = np.concatenate([features[0].transpose([1, 0]).numpy(), label], axis=1)
+    # with open('infer.txt', 'w') as f:
+    #         for points in tmp:
+    #             line = ''
+    #             for idx, x in enumerate(points):
+    #                 if idx < 3:
+    #                     line = line + str(x) + ' '
+    #                 elif 3 <= idx < 6:
+    #                     line = line + str(int(x)) + ' '
+    #                 else:
+    #                     line = line + str(int(x)) + '\n'
+    #             line += '\n'
+    #             f.write(line)
+
     return pred, logit
