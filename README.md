@@ -1,10 +1,11 @@
 An pointcloud segmentation tools implemented in paddlepaddle.
 
 
-## evaluate
-|  Model   |  miou  |   OA   |
-|:--------:|:------:|:------:|
-| Pointnet | 43.99% | 80.25% |
+## evaluate on S3DIS
+|   Model    |  miou  |   OA   | val_area |
+|:----------:|:------:|:------:|:--------:|
+|  Pointnet  | 43.99% | 80.25% |    5     |
+| Pointnetv2 |   -    |   -    |    5     |
 
 ## how to use
 Download 3D indoor parsing dataset (**S3DIS**) [here](http://buildingparser.stanford.edu/dataset.html)  and save in `data/s3dis/Stanford3dDataset_v1.2_Aligned_Version/`.
@@ -15,12 +16,20 @@ python data_prepare/collect_indoor3d_data.py
 
 train command:
 ```commandline
-python tools/train.py --config configs/pointnet/pointnet_4096_32e.yml --use_vdl --log_iter 10 --save_interval 1 --save_dir output  --num_workers 6
+# pointnet
+python tools/train.py --config configs/pointnet/pointnet_4096_32e.yml --use_vdl --log_iter 10 --save_interval 1 --save_dir output/pointnet  --num_workers 6
+
+# pointnetv2 msg
+python tools/train.py --config configs/pointnetv2/pointnetv2_msg_4096_32e.yml --use_vdl --log_iter 10 --save_interval 1 --save_dir output/pointnetv2_msg --num_workers 6
 ```
 
 val command:
 ```commandline
-python tools/val.py --config configs/pointnet/pointnet_4096_32e.yml --model_path output/iter_95232/model.pdparams --num_votes 3 --num_workers 6
+# pointnet
+python tools/val.py --config configs/pointnet/pointnet_4096_32e.yml --model_path output/pointnet/iter_95232/model.pdparams --num_votes 3 --num_workers 6
+
+# pointnetv2 msg
+python tools/val.py --config configs/pointnetv2/pointnetv2_msg_4096_32e.yml --model_path output/pointnetv2_msg/iter_95232/model.pdparams --num_votes 3 --num_workers 6
 ```
 
 ## visual
