@@ -162,9 +162,6 @@ class PositionNormalize:
         max_coord = np.max(np.abs(data['pos']), axis=0, keepdims=True)
         coord = coord / max_coord
         data['pos'] = coord
-        # print(data['pos'][:, 2].min(), data['pos'][:, 2].max())
-        # print(data['pos'][:, 0].min(), data['pos'][:, 0].max())
-        # print(data['pos'][:, 1].min(), data['pos'][:, 1].max())
         return data
 
 

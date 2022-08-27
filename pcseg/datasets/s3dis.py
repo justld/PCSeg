@@ -13,14 +13,11 @@
 # limitations under the License.
 
 import os
-import pickle
 import numpy as np
 from tqdm import tqdm
 
-from pcseg.datasets import voxelize, crop_pc
 from pcseg.cvlibs import manager
 from pcseg.transforms import Compose
-from pcseg.utils import logger
 
 from paddle.io import Dataset
 
@@ -56,7 +53,7 @@ class S3DIS(Dataset):
         super().__init__()
         self.num_point = num_points
         self.block_size = block_size
-        self.transform = transforms
+        self.transforms = Compose(transforms)
         rooms = sorted(os.listdir(dataset_root))
         rooms = [room for room in rooms if 'Area_' in room]
         if mode.lower() == 'train':
@@ -137,13 +134,21 @@ class S3DIS(Dataset):
             room_idx][2]
         selected_points[:, 0] = selected_points[:, 0] - center[0]
         selected_points[:, 1] = selected_points[:, 1] - center[1]
-        selected_points[:, 3:6] /= 255.0
+        # selected_points[:, 3:6] /= 255.0
         current_points[:, 0:6] = selected_points
         current_labels = labels[selected_point_idxs]
-        if self.transform is not None:
-            current_points, current_labels = self.transform(current_points,
-                                                            current_labels)
-        current_points = np.transpose(current_points, [1, 0])
+        data = {}
+        data['pos'] = current_points[:, 0:3]
+        data['feat'] = current_points[:, 3:6]
+        data['norm_location'] = current_points[:, 6:]
+        data['label'] = current_labels
+        if self.transforms is not None:
+            data = self.transforms(data)
+            # current_points, current_labels = self.transform(current_points,
+            #                                                 current_labels)
+        current_points = np.concatenate(
+            [data['pos'], data['feat'], data['norm_location']],
+            axis=1).transpose([1, 0])
         return current_points, current_labels
 
     def __len__(self):
@@ -159,13 +164,15 @@ class ScannetDatasetWholeScene(S3DIS):
                  val_area=5,
                  stride=0.5,
                  block_size=1.0,
-                 padding=0.001):
+                 padding=0.001,
+                 transforms=None):
         self.block_points = block_points
         self.block_size = block_size
         self.padding = padding
         self.dataset_root = dataset_root
         self.mode = mode
         self.stride = stride
+        self.transforms = Compose(transforms)
         self.scene_points_num = []
         if self.mode == 'train':
             self.file_list = [
@@ -251,7 +258,7 @@ class ScannetDatasetWholeScene(S3DIS):
                                                        2.0)
                 data_batch[:, 1] = data_batch[:, 1] - (s_y + self.block_size /
                                                        2.0)
-                data_batch[:, 3:6] /= 255.0
+                # data_batch[:, 3:6] /= 255.0
                 data_batch = np.concatenate((data_batch, normlized_xyz), axis=1)
                 label_batch = labels[point_idxs].astype(int)
                 batch_weight = self.labelweights[label_batch]
@@ -266,11 +273,21 @@ class ScannetDatasetWholeScene(S3DIS):
                      batch_weight]) if label_room.size else batch_weight
                 index_room = np.hstack(
                     [index_room, point_idxs]) if index_room.size else point_idxs
+        data = {}
+        data['pos'] = data_room[:, 0:3]
+        data['feat'] = data_room[:, 3:6]
+        data['norm_location'] = data_room[:, 6:]
+        if self.transforms is not None:
+            data = self.transforms(data)
+        data_room = np.concatenate(
+            [data['pos'], data['feat'], data['norm_location']], axis=1)
+
         data_room = data_room.reshape(
             (-1, self.block_points, data_room.shape[1])).transpose([0, 2, 1])
         label_room = label_room.reshape((-1, self.block_points))
         sample_weight = sample_weight.reshape((-1, self.block_points))
         index_room = index_room.reshape((-1, self.block_points))
+
         return data_room, label_room, sample_weight, index_room
 
     def __len__(self):

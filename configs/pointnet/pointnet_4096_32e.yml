@@ -7,6 +7,16 @@ train_dataset:
   dataset_root: 'data/stanford_indoor3d'
   mode: train
   val_area: 5
+  transforms:
+    - type: RandomFeatContrast
+      prob: 0.2
+      blend_factor: None
+    - type: RandomRotatePositionByZ
+    - type: RandomFeatDrop
+      drop_ratio: 0.2
+    - type: FeatNormalize
+      color_mean: [ 0.5, 0.5, 0.5 ]
+      color_std: [ 0.5, 0.5, 0.5 ]
 
 val_dataset:
   type: ScannetDatasetWholeScene
@@ -15,6 +25,10 @@ val_dataset:
   val_area: 5
   stride: 0.5
   block_size: 1.0
+  transforms:
+    - type: FeatNormalize
+      color_mean: [ 0.5, 0.5, 0.5 ]
+      color_std: [ 0.5, 0.5, 0.5 ]
 
 model:
   type: PointNet

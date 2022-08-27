@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .env import get_sys_env
+from .env import get_sys_env, seg_env
 from .config_check import config_check
 from .utils import resume
 from .timer import calculate_eta, TimeAverager
@@ -20,3 +20,4 @@ from .op_flops_funs import count_syncbn
 from . import progbar
 from . import logger
 from . import metrics
+from . import download
