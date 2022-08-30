@@ -7,6 +7,12 @@ An pointcloud segmentation tools implemented in paddlepaddle. Including PointNet
 |    Pointnet    | 43.99% | 80.25% |    5     |
 | Pointnetv2_msg | 48.34% | 80.88% |    5     |
 
+## env installation
+follow the installation of [paddlepaddle](https://www.paddlepaddle.org.cn/documentation/docs/zh/install/index_cn.html),then install the dependency.
+```commandline
+pip install -r requirements.txt
+```
+
 ## how to use
 Download 3D indoor parsing dataset (**S3DIS**) [here](http://buildingparser.stanford.edu/dataset.html)  and save in `data/s3dis/Stanford3dDataset_v1.2_Aligned_Version/`.
 Run the above command and preprocess dataset:
