@@ -117,7 +117,7 @@ def evaluate(model,
     with paddle.no_grad():
         for iter, data in enumerate(loader):
             reader_cost_averager.record(time.time() - batch_start)
-            BATCH_SIZE = 32
+            BATCH_SIZE = 16
             scene_data, scene_label, scene_smpw, scene_point_index = data[
                 0], data[1], data[2], data[3]
             scene_data = scene_data[0].astype('float32')

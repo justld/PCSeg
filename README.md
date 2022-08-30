@@ -2,10 +2,10 @@ An pointcloud segmentation tools implemented in paddlepaddle.
 
 
 ## evaluate on S3DIS
-|   Model    |  miou  |   OA   | val_area |
-|:----------:|:------:|:------:|:--------:|
-|  Pointnet  | 43.99% | 80.25% |    5     |
-| Pointnetv2 |   -    |   -    |    5     |
+|     Model      |  miou  |   OA   | val_area |
+|:--------------:|:------:|:------:|:--------:|
+|    Pointnet    | 43.99% | 80.25% |    5     |
+| Pointnetv2_msg | 48.34% | 80.88% |    5     |
 
 ## how to use
 Download 3D indoor parsing dataset (**S3DIS**) [here](http://buildingparser.stanford.edu/dataset.html)  and save in `data/s3dis/Stanford3dDataset_v1.2_Aligned_Version/`.
