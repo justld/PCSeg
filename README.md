@@ -1,4 +1,4 @@
-An pointcloud segmentation tools implemented in paddlepaddle.
+An pointcloud segmentation tools implemented in paddlepaddle. Including PointNet/PointNetv2...
 
 
 ## evaluate on S3DIS
