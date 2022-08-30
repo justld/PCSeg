@@ -34,6 +34,7 @@ python tools/val.py --config configs/pointnetv2/pointnetv2_msg_4096_32e.yml --mo
 
 ## visual
 if you set do_eval when training, "output/visual" fold will save evaluate prediction results. Your can visual it by comparecloud.
+
 ![example](docs/imgs/example1.png)
 
 ## Acknowledge
